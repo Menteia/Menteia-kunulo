@@ -15,10 +15,7 @@ class _HomePageState extends State<HomePage> {
   static const platform = const MethodChannel("xyz.trankvila.menteiakunulo/audioplayer");
 
   TextEditingController _controller = TextEditingController();
-  List<_Message> history = <_Message>[
-    _Message(message: 'test', fromMenteia: true),
-    _Message(message: 'test2', fromMenteia: false),
-  ];
+  List<_Message> history = <_Message>[];
 
   @override
   void initState() {
@@ -42,7 +39,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Menteia kunulo"),
+        title: Text("revinas"),
       ),
       drawer: Drawer(
         child: ListView(
@@ -52,15 +49,19 @@ class _HomePageState extends State<HomePage> {
               child: Text("Menteia kunulo"),
             ),
             ListTile(
+              leading: Icon(Icons.message),
               title: Text('revinas'),
             ),
             ListTile(
+              leading: Icon(Icons.list),
               title: Text('girisa'),
             ),
             ListTile(
+              leading: Icon(Icons.alarm),
               title: Text('sasara'),
             ),
             ListTile(
+              leading: Icon(Icons.notifications),
               title: Text('prilema'),
             )
           ],
@@ -78,33 +79,35 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget buildInput() {
-    return Row(
+    return Container(
+      child: Row(
         children: <Widget>[
           Flexible(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: 'doni/keli ...',
-                hintStyle: TextStyle(color: Colors.black26)
-              ),
-              autofocus: true,
-            )
+              child: TextField(
+                controller: _controller,
+                decoration: InputDecoration(
+                    hintText: 'doni/keli ...',
+                    hintStyle: TextStyle(color: Colors.black26)
+                ),
+                autofocus: true,
+                textInputAction: TextInputAction.send,
+                onEditingComplete: () {
+                  _sendMessage();
+                },
+              )
           ),
           Material(
             child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 8.0),
+              margin: EdgeInsets.only(left: 8.0),
               child: IconButton(icon: Icon(Icons.send), onPressed: () {
-                final text = _controller.text;
-                widget.channel.sink.add(text);
-                setState(() {
-                  history.add(_Message(message: text, fromMenteia: false));
-                });
-                _controller.clear();
+                _sendMessage();
               }),
             ),
           )
         ],
-      );
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 12.0),
+    );
   }
 
   Widget buildChatHistory() {
@@ -143,6 +146,15 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     widget.channel.sink.close();
     super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _controller.text;
+    widget.channel.sink.add(text);
+    setState(() {
+      history.add(_Message(message: text, fromMenteia: false));
+    });
+    _controller.clear();
   }
 }
 
