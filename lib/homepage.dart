@@ -1,11 +1,13 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
-  final WebSocketChannel channel;
+  final String idToken;
 
-  HomePage({Key key, @required this.channel}): super(key: key);
+  HomePage({Key key, @required this.idToken}): super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -13,18 +15,27 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   static const platform = const MethodChannel("xyz.trankvila.menteiakunulo/audioplayer");
+  final channel = IOWebSocketChannel.connect("ws://192.168.1.192:7777");
 
   TextEditingController _controller = TextEditingController();
   List<_Message> history = <_Message>[];
+  bool connected = false;
 
   @override
   void initState() {
     super.initState();
-    widget.channel.stream.listen((data) {
+    channel.sink.add(widget.idToken);
+    channel.stream.listen((data) {
       if (data is String) {
-        setState(() {
-          history.add(_Message(message: data, fromMenteia: true));
-        });
+        if (data == "!") {
+          setState(() {
+            connected = true;
+          });
+        } else {
+          setState(() {
+            history.add(_Message(message: data, fromMenteia: true));
+          });
+        }
       } else if (data is List<int>) {
         try {
           platform.invokeMethod('playAudio', data);
@@ -47,6 +58,18 @@ class _HomePageState extends State<HomePage> {
           children: <Widget>[
             DrawerHeader(
               child: Text("Menteia kunulo"),
+              decoration: BoxDecoration(gradient: RadialGradient(
+                center: Alignment(-1.0, -1.0),
+                radius: 0.9,
+                colors: <Color>[
+                  Colors.deepPurple,
+                  Colors.transparent
+                ],
+                stops: <double>[
+                  0.3,
+                  1.0
+                ]
+              )),
             ),
             ListTile(
               leading: Icon(Icons.message),
@@ -85,6 +108,7 @@ class _HomePageState extends State<HomePage> {
           Flexible(
               child: TextField(
                 controller: _controller,
+                enabled: connected,
                 decoration: InputDecoration(
                     hintText: 'doni/keli ...',
                     hintStyle: TextStyle(color: Colors.black26)
@@ -144,13 +168,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    widget.channel.sink.close();
+    channel.sink.close();
     super.dispose();
   }
 
   void _sendMessage() {
     final text = _controller.text;
-    widget.channel.sink.add(text);
+    channel.sink.add(text);
     setState(() {
       history.add(_Message(message: text, fromMenteia: false));
     });

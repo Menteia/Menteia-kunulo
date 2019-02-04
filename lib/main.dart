@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:menteia_kunulo/homepage.dart';
+import 'package:menteia_kunulo/loginpage.dart';
 import 'package:web_socket_channel/io.dart';
 
 void main() => runApp(MenteiaKunulo());
@@ -22,9 +23,7 @@ class MenteiaKunulo extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.deepPurple,
       ),
-      home: HomePage(
-        channel: IOWebSocketChannel.connect('ws://192.168.1.192:7777'),
-      ),
+      home: LoginPage(),
     );
   }
 }

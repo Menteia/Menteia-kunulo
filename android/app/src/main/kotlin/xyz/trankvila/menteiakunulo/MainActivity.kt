@@ -3,6 +3,9 @@ package xyz.trankvila.menteiakunulo
 import android.os.Bundle
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 
 import io.flutter.app.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
