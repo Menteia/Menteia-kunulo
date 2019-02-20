@@ -1,8 +1,10 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:web_socket_channel/io.dart';
+import 'package:menteia_kunulo/listpage.dart';
+import 'package:menteia_kunulo/values.dart';
+import 'package:http/http.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class HomePage extends StatefulWidget {
   final String idToken;
@@ -15,39 +17,59 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   static const platform = const MethodChannel("xyz.trankvila.menteiakunulo/audioplayer");
-  final channel = IOWebSocketChannel.connect("ws://192.168.1.192:7777");
 
   TextEditingController _controller = TextEditingController();
   List<_Message> history = <_Message>[];
   bool connected = false;
+  String token;
 
   @override
   void initState() {
     super.initState();
-    channel.sink.add(widget.idToken);
-    channel.stream.listen((data) {
-      if (data is String) {
-        if (data == "!") {
-          setState(() {
-            connected = true;
-          });
-        } else {
-          setState(() {
-            history.add(_Message(message: data, fromMenteia: true));
-          });
-        }
-      } else if (data is List<int>) {
-        try {
-          platform.invokeMethod('playAudio', data);
-        } on PlatformException catch (e) {
-          debugPrint(e.message);
-        }
+    final fm = FirebaseMessaging();
+    fm.configure(
+      onMessage: (message) {
+        final content = message["notification"]["body"];
+        post(
+          "$httpURL/paroli?token=$token",
+          body: content
+        ).then((response) {
+          try {
+            setState(() {
+              history.add(_Message(
+                  message: content,
+                  fromMenteia: true
+              ));
+            });
+            if (response.statusCode == 200) {
+              platform.invokeMethod("playAudio", response.bodyBytes);
+            }
+          } on PlatformException catch (e) {
+            debugPrint(e.message);
+          }
+        });
       }
+    );
+    fm.getToken().then((deviceToken) {
+      FirebaseAuth.instance.currentUser().then((user) {
+        user.getIdToken().then((token) {
+          post(
+            "$httpURL/sciigi?token=$token",
+            body: deviceToken,
+          ).then((_) {
+            setState(() {
+              connected = true;
+              this.token = token;
+            });
+          });
+        });
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text("revinas"),
@@ -62,7 +84,7 @@ class _HomePageState extends State<HomePage> {
                 center: Alignment(-1.0, -1.0),
                 radius: 0.9,
                 colors: <Color>[
-                  Colors.deepPurple,
+                  theme.primaryColor,
                   Colors.transparent
                 ],
                 stops: <double>[
@@ -78,6 +100,11 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.list),
               title: Text('girisa'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return ListPage();
+                }));
+              },
             ),
             ListTile(
               leading: Icon(Icons.alarm),
@@ -113,7 +140,6 @@ class _HomePageState extends State<HomePage> {
                     hintText: 'doni/keli ...',
                     hintStyle: TextStyle(color: Colors.black26)
                 ),
-                autofocus: true,
                 textInputAction: TextInputAction.send,
                 onEditingComplete: () {
                   _sendMessage();
@@ -151,7 +177,7 @@ class _HomePageState extends State<HomePage> {
                 padding: EdgeInsets.fromLTRB(15, 10, 15, 10),
                 width: 270.0,
                 decoration: BoxDecoration(
-                    color: message.fromMenteia ? Colors.deepPurple : Colors.black12,
+                    color: message.fromMenteia ? message.error ? Colors.red : Colors.deepPurple : Colors.black12,
                     borderRadius: BorderRadius.circular(8.0)
                 ),
                 margin: message.fromMenteia ?
@@ -166,15 +192,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  void dispose() {
-    channel.sink.close();
-    super.dispose();
-  }
-
   void _sendMessage() {
     final text = _controller.text;
-    channel.sink.add(text);
+    post(
+        "$httpURL/respondi?token=$token",
+        body: text
+    ).then((response) {
+      if (response.statusCode != 204) {
+        setState(() {
+          history.add(_Message(
+              message: response.body,
+              fromMenteia: true,
+              error: true
+          ));
+        });
+      }
+    });
     setState(() {
       history.add(_Message(message: text, fromMenteia: false));
     });
@@ -183,8 +216,9 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _Message {
-  _Message({this.message, this.fromMenteia});
+  _Message({this.message, this.fromMenteia, this.error = false});
 
   final String message;
   final bool fromMenteia;
+  final bool error;
 }

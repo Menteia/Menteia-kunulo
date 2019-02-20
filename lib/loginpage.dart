@@ -17,6 +17,21 @@ class LoginPageState extends State<LoginPage> {
   bool loggingIn = false;
 
   @override
+  void initState() {
+    FirebaseAuth.instance.currentUser().then((user) {
+      if (user != null) {
+        user.getIdToken(refresh: true).then((idToken) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {
+            return HomePage(
+              idToken: idToken,
+            );
+          }));
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
