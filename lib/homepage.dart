@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:menteia_kunulo/listpage.dart';
+import 'package:menteia_kunulo/timerpage.dart';
 import 'package:menteia_kunulo/values.dart';
 import 'package:http/http.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,9 +33,11 @@ class _HomePageState extends State<HomePage> {
     fm.configure(
       onMessage: (message) {
         final content = message["notification"]["body"];
-        post(
-          "$httpURL/paroli?token=$token",
-          body: content
+        final paroloID = message["data"]["paroloID"];
+        debugPrint(content);
+        debugPrint(paroloID);
+        get(
+          "$httpURL/paroli?token=$token&id=$paroloID"
         ).then((response) {
           try {
             setState(() {
@@ -99,16 +104,16 @@ class _HomePageState extends State<HomePage> {
             ),
             ListTile(
               leading: Icon(Icons.list),
-              title: Text('girisa'),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return ListPage();
-                }));
-              },
+              title: Text('talimis'),
             ),
             ListTile(
               leading: Icon(Icons.alarm),
-              title: Text('sasara'),
+              title: Text('sanimis'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return TimerPage();
+                }));
+              },
             ),
             ListTile(
               leading: Icon(Icons.notifications),
@@ -198,13 +203,35 @@ class _HomePageState extends State<HomePage> {
         "$httpURL/respondi?token=$token",
         body: text
     ).then((response) {
-      if (response.statusCode != 204) {
+      if (response.statusCode == 400) {
         setState(() {
           history.add(_Message(
               message: response.body,
               fromMenteia: true,
               error: true
           ));
+        });
+      } else {
+        final body = jsonDecode(response.body);
+        final content = body["teksto"];
+        final paroloID = body["UUID"];
+        debugPrint(response.body);
+        get(
+            "$httpURL/paroli?token=$token&id=$paroloID"
+        ).then((response) {
+          try {
+            setState(() {
+              history.add(_Message(
+                  message: content,
+                  fromMenteia: true
+              ));
+            });
+            if (response.statusCode == 200) {
+              platform.invokeMethod("playAudio", response.bodyBytes);
+            }
+          } on PlatformException catch (e) {
+            debugPrint(e.message);
+          }
         });
       }
     });

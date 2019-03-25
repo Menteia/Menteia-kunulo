@@ -57,7 +57,6 @@ class _ListPageState extends State<ListPage> {
     final response = await get(
       "$httpURL/girisa?token=$token",
     );
-    debugPrint(response.body);
     final parsed = json.decode(response.body);
     return parsed.keys.toList(growable: false);
   }
